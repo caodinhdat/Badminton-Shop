@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # --- Dịch vụ Database (PostgreSQL) ---
+  db:
+    image: postgres:16.9-bullseye # Sử dụng phiên bản PostgreSQL 16.9 Bullseye
+    container_name: postgres # Đặt tên cố định cho container DB
+    environment:
+      POSTGRES_DB: user            # Tên cơ sở dữ liệu
+      POSTGRES_USER: user              # Tên người dùng database là 'user'
+      POSTGRES_PASSWORD: user          # Mật khẩu người dùng database là 'user'
+    ports:
+      - "5433:5432" # Ánh xạ cổng 5432 của container ra cổng 5433 của máy host
+    volumes:
+      - db_data:/var/lib/postgresql/data # Lưu dữ liệu của DB vào một volume bền vững
+    healthcheck: # Định nghĩa kiểm tra sức khỏe để đảm bảo DB sẵn sàng
+      test: ["CMD-SHELL", "pg_isready -U user -d user"] # Kiểm tra kết nối DB với user 'user'
+      interval: 5s # Kiểm tra mỗi 5 giây
+      timeout: 5s # Giới hạn thời gian chờ cho mỗi lần kiểm tra
+      retries: 5 # Số lần thử lại trước khi đánh dấu là không khỏe mạnh
+
+  # --- Dịch vụ Backend (Spring Boot) ---
+  backend: # Tên service là 'backend'
+    image: backend
+    build:
+      context: ./backend # Đường dẫn đến thư mục chứa Dockerfile.backend
+      dockerfile: Dockerfile # Tên Dockerfile cho backend
+    container_name: backend # Đặt tên cố định cho container backend
+    ports:
+      - "8080:8080" # Ánh xạ cổng 8080 của container ra cổng 8080 của máy host
+    environment:
+      # Cấu hình kết nối DB cho Spring Boot. 'db' là tên service của database trong Docker Compose network
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/user # URL kết nối đến PostgreSQL
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver # Tên driver PostgreSQL
+      # Thông tin đăng nhập cho PostgreSQL
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: user
+      # Thêm các biến môi trường khác cho ứng dụng Spring Boot nếu cần
+    volumes:
+      - ./backend:/app # **VOLUME MOUNTING CHO PHÁT TRIỂN:** Mount mã nguồn từ host vào container
+      - ~/.m2:/root/.m2 # Tùy chọn: Mount cache Maven để tăng tốc độ build/run nếu bạn dùng Maven Wrapper
+    depends_on:
+      db:
+        condition: service_healthy # Đảm bảo backend chỉ khởi động khi DB đã được đánh dấu là khỏe mạnh
+    command: ./mvnw spring-boot:run # Lệnh chạy ứng dụng Spring Boot (đảm bảo bạn có mvnw trong thư mục backend)
+
+  # --- Dịch vụ Frontend (Vue.js + TypeScript với Vite) ---
+  frontend: # Tên service là 'frontend'
+    image: frontend
+    build:
+      context: ./frontend # Đường dẫn đến thư mục chứa Dockerfile.frontend
+      dockerfile: Dockerfile # Tên Dockerfile cho frontend
+    container_name: frontend # Đặt tên cố định cho container frontend
+    ports:
+      - "80:5173" # Quan trọng: Ánh xạ cổng 80 của host (truy cập qua http://localhost) tới cổng 5173 của Vite dev server trong container
+    environment:
+      # Cấu hình URL API cho frontend. 'backend' là tên service của backend trong Docker Compose network
+      VITE_APP_API_BASE_URL: http://backend:8080/api # Biến môi trường Vite cần bắt đầu bằng VITE_
+    volumes:
+      - ./frontend:/app # **VOLUME MOUNTING CHO PHÁT TRIỂN:** Mount mã nguồn từ host vào container
+      - /app/node_modules # **Quan trọng:** Ngăn không cho thư mục node_modules trên host đè lên thư mục trong container.
+                          # Thư mục này sẽ được tạo và quản lý bởi npm/yarn bên trong container.
+    depends_on:
+      - backend # Đảm bảo frontend khởi động sau backend
+    command: npm run dev -- --host 0.0.0.0 --port 5173 # Lệnh chạy Vite dev server bằng npm
+
+# Định nghĩa các Volumes để lưu trữ dữ liệu bền vững
+volumes:
+  db_data: # Volume cho dữ liệu PostgreSQL. Dữ liệu sẽ được giữ lại ngay cả khi container 'db' bị xóa.

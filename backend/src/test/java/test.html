@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test API Register</title>
+</head>
+<body>
+  <h2>Test Register API</h2>
+  <form id="registerForm">
+    <label>Username:</label><br>
+    <input type="text" id="username" value="datcd"><br><br>
+    
+    <label>Email:</label><br>
+    <input type="email" id="email" value="dat@example.com"><br><br>
+    
+    <label>Password:</label><br>
+    <input type="password" id="password" value="123456"><br><br>
+    
+    <button type="submit">Send POST /api/register</button>
+  </form>
+
+  <h3>Response:</h3>
+  <pre id="response"></pre>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const responseBox = document.getElementById('response');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault(); // Ngăn reload trang
+
+      const data = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      };
+
+      try {
+        const res = await fetch('http://localhost:8080/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        const text = await res.text();
+        responseBox.textContent = `Status: ${res.status}\n\n${text}`;
+      } catch (err) {
+        responseBox.textContent = `Error: ${err}`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+server:
+  error:
+    include-message: always # Luôn bao gồm thông điệp lỗi trong phản hồi  
+    include-binding-errors: always # Luôn bao gồm lỗi ràng buộc trong phản hồi lỗi
+
+logging.level.org.springframework.security: DEBUG
+logging.file.name: app.log
+
+# Cấu hình mức log ghi file (nếu khác mức log console)
+logging.level.root: INFO
+
+spring:
+  application:
+    name: user
+
+  # server:
+  #   port: 8080
+  #   servlet:
+  #     context-path: /api # Đặt đường dẫn gốc cho API
+
+  datasource:
+    url: jdbc:postgresql://postgres:5432/user
+    username: user
+    password: user
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    
+  redis:
+    host: localhost
+    port: 6379
+
+jwt:
+  secret: jwt_secret_datcd_user_management_very_long_and_secure_key_123456
+  token-prefix: Bearer
+  expirationMs: 86400000 # 1 ngày (millisecond)
